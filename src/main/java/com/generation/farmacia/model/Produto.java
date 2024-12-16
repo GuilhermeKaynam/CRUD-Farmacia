@@ -45,7 +45,6 @@ public class Produto {
 		this.validade = validade;
 	}
 
-	// Getters e Setters
 	public Long getId() {
 		return id;
 	}

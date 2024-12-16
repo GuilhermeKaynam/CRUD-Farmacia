@@ -12,7 +12,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -46,7 +45,6 @@ public class ProdutoController {
 		return produtoRepository.findByQuantidadeEstoqueLessThan(limiteEstoque);
 	}
 
-	// Endpoint para listar produtos com validade próxima
 	@GetMapping("/validade-proxima")
 	public List<Produto> listarProdutosComValidadeProxima(@RequestParam(defaultValue = "30") int dias) {
 		return produtoRepository.findByValidadeBefore(LocalDate.now().plusDays(dias));
