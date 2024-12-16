@@ -1,21 +1,20 @@
 package com.generation.farmacia.controller;
 
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.generation.farmacia.model.Produto;
 import com.generation.farmacia.repository.ProdutoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/produtos")
@@ -25,8 +24,11 @@ public class ProdutoController {
 	private ProdutoRepository produtoRepository;
 
 	@GetMapping
-	public List<Produto> listar() {
-		return produtoRepository.findAll();
+	public ResponseEntity<List<Produto>> listar(@RequestParam(defaultValue = "0") int pagina,
+			@RequestParam(defaultValue = "10") int tamanho, @RequestParam(defaultValue = "nome") String ordenarPor) {
+		Pageable pageable = PageRequest.of(pagina, tamanho, Sort.by(ordenarPor));
+		Page<Produto> produtos = produtoRepository.findAll(pageable);
+		return ResponseEntity.ok(produtos.getContent());
 	}
 
 	@GetMapping("/{id}")
@@ -39,8 +41,19 @@ public class ProdutoController {
 		return produtoRepository.findByNomeContainingIgnoreCase(nome);
 	}
 
+	@GetMapping("/estoque-baixo")
+	public List<Produto> listarProdutosComEstoqueBaixo(@RequestParam(defaultValue = "10") int limiteEstoque) {
+		return produtoRepository.findByQuantidadeEstoqueLessThan(limiteEstoque);
+	}
+
+	// Endpoint para listar produtos com validade próxima
+	@GetMapping("/validade-proxima")
+	public List<Produto> listarProdutosComValidadeProxima(@RequestParam(defaultValue = "30") int dias) {
+		return produtoRepository.findByValidadeBefore(LocalDate.now().plusDays(dias));
+	}
+
 	@PostMapping
-	public Produto criar(@RequestBody Produto produto) {
+	public Produto criar(@Valid @RequestBody Produto produto) {
 		return produtoRepository.save(produto);
 	}
 
@@ -50,6 +63,17 @@ public class ProdutoController {
 			produtoExistente.setNome(produto.getNome());
 			produtoExistente.setPreco(produto.getPreco());
 			produtoExistente.setCategoria(produto.getCategoria());
+			produtoExistente.setQuantidadeEstoque(produto.getQuantidadeEstoque());
+			produtoExistente.setValidade(produto.getValidade());
+			produtoRepository.save(produtoExistente);
+			return ResponseEntity.ok(produtoExistente);
+		}).orElse(ResponseEntity.notFound().build());
+	}
+
+	@PutMapping("/{id}/ajuste-estoque")
+	public ResponseEntity<Produto> ajustarEstoque(@PathVariable Long id, @RequestBody AjusteEstoqueRequest request) {
+		return produtoRepository.findById(id).map(produtoExistente -> {
+			produtoExistente.ajustarEstoque(request.getQuantidade());
 			produtoRepository.save(produtoExistente);
 			return ResponseEntity.ok(produtoExistente);
 		}).orElse(ResponseEntity.notFound().build());
